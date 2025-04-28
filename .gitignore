@@ -20,6 +20,7 @@ test_scripts
 .vscode
 
 # Other
+.gradio
 .DS_Store
 wandb
 output
