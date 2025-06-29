@@ -179,11 +179,11 @@ We release the following models:
 - Quicksviewer
   + stage1-ckpt
   + stage2-ckpt
-  + stage3-ckpt
+  + [stage3-ckpt](https://modelscope.cn/models/qijithu/Quicksviewer-8B)
 - Quicksviewer-Llama3.1
   + stage1-ckpt
   + stage2-ckpt
-  + stage3-ckpt
+  + [stage3-ckpt](https://modelscope.cn/models/qijithu/Quicksviewer-Llama3.1-8B)
 
 ## License
 
