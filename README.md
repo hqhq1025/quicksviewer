@@ -54,9 +54,11 @@ the third is a cassowary. The African ostrich inhabits the red area marked in th
 
 ### Using pip
 1.  Install [Anaconda Distribution](https://www.anaconda.com/download).
-2.  Install the necessary Python packages in the environment.
+2.  Create and activate a dedicated environment (Python 3.11 is recommended).
 
     ```bash
+    conda create -n quicksviewer python=3.11 -y
+    conda activate quicksviewer
     pip install -r requirements.txt
     ```
 
@@ -142,7 +144,7 @@ export PYTHONPATH=/path/to/quicksviewer
 python quicksviewer/serve/cli.py \
     --model-path checkpoints/quicksviewer-s3/checkpoint-10000 \
     --version qwen2 \
-    --context playground/demo/examples/tokyo_people.mp4 \
+    --context playground/examples/tokyo_people.mp4 \
     --video_nframes 420 \
     --video_fps 1 \
     --vpm 0 \
@@ -218,4 +220,3 @@ We are grateful for the following awesome projects our work arising from:
 - [LongVU](https://github.com/Vision-CAIR/LongVU): LongVU: Spatiotemporal Adaptive Compression for Long Video-Language Understanding
 - [Qwen](https://github.com/QwenLM/Qwen2.5): Qwen2.5 Technical Report
 - [LLaMA](https://github.com/meta-llama/llama3): The Llama Family
-
