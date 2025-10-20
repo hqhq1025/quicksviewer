@@ -1,0 +1,76 @@
+# Quicksviewer 适配 SGLang TODO
+
+- [ ] 准备研发环境
+    - [ ] 在研发机安装 `conda`，执行 `conda create -n quicksviewer python=3.11 -y`
+    - [ ] 激活环境并运行 `pip install -r requirements.txt && pip install -e .`
+    - [ ] 确保 `sglang` 子模块或代码同步到最新迭代
+    - [ ] 设置环境变量 `PYTHONPATH=/Users/haoqing/Documents/Github/quicksviewer`
+    - [ ] 准备至少一块支持 bfloat16 的 GPU，用于后续推理验证
+- [ ] 梳理模型资产
+    - [ ] 收集 Quicksviewer Stage3 合并后的权重目录（含 `config.json`、`tokenizer`、`mm_projector.bin` 等）
+    - [ ] 备份原始权重，确认可读写权限
+    - [ ] 整理可选基础模型（Qwen2、Llama3.1 等）与实际训练版本对应关系
+- [ ] 调整 HuggingFace 配置
+    - [ ] 打开权重包中的 `config.json`
+    - [ ] 将 `"model_type"` 设为 `quicksviewer`
+    - [ ] 更新 `"architectures"` 为 `["QuicksviewerForCausalLM"]`
+    - [ ] 根据视觉模块实际参数补充 `vision_config`、`text_config` 字段
+    - [ ] 校验 `image_token_id`、`bos_token_id`、`pad_token_id` 等与 tokenizer 对齐
+- [ ] 在 SGLang 定义配置类
+    - [ ] 在 `sglang/python/sglang/srt/configs` 新建 `quicksviewer.py`
+    - [ ] 从 `transformers.configuration_utils` 导入 `PretrainedConfig`
+    - [ ] 实现 `class QuicksviewerConfig(PretrainedConfig)` 并声明 `model_type = "quicksviewer"`
+    - [ ] 在 `__init__` 中解析 `vision_config`、`text_config`、`image_token_id`、`projector_stride` 等关键字段
+    - [ ] 为 `vision_config` 和 `text_config` 支持 dict/类实例两种输入方式
+    - [ ] 调用 `super().__init__(pad_token_id=..., **kwargs)` 继承基础属性
+- [ ] 暴露配置模块
+    - [ ] 修改 `sglang/python/sglang/srt/configs/__init__.py` 导入 `QuicksviewerConfig`
+    - [ ] 将 `"QuicksviewerConfig"` 加入 `__all__`
+- [ ] 注册到 AutoConfig
+    - [ ] 在 `sglang/python/sglang/srt/utils/hf_transformers_utils.py` 引入 `QuicksviewerConfig`
+    - [ ] 在 `_CONFIG_REGISTRY` 添加 `QuicksviewerConfig.model_type: QuicksviewerConfig`
+    - [ ] 执行一次 `AutoConfig.from_pretrained(<权重路径>)` 验证返回类型正确
+- [ ] 标记多模态模型
+    - [ ] 打开 `sglang/python/sglang/srt/configs/model_config.py`
+    - [ ] 检查 `multimodal_model_archs` 是否存在漏掉逗号的拼接问题
+    - [ ] 将 `"QuicksviewerForCausalLM"` 加入 `multimodal_model_archs`
+    - [ ] 如需特殊多模态逻辑，扩展 `is_multimodal_gen_model` 或相关判断
+- [ ] 对接模型实现
+    - [ ] 在 `sglang/python/sglang/srt/models` 放置 `quicksviewer.py`，确保包含 `QuicksviewerForCausalLM`
+    - [ ] 检查模型类是否继承自 SGLang 的基础 VLM 类（例如 `Step3VLForConditionalGeneration` 的模式）
+    - [ ] 将视觉编码、Cubing 模块、投影层按 SGLang 的 forward 约定对接
+    - [ ] 确保 `EntryClass = QuicksviewerForCausalLM` 位于文件顶层
+- [ ] 处理多模态 Processor
+    - [ ] 若需要自定义处理器，在 `sglang/python/sglang/srt/multimodal/processors` 中新增实现
+    - [ ] 使用 `register_processor(QuicksviewerConfig, ProcessorClass)` 绑定
+    - [ ] 若视觉预处理特殊，调用 `register_image_processor` 并提供自定义 `ImageProcessor`
+    - [ ] 测试 `processor(image=<测试视频>, prompt=<文本>)` 输出的张量形状
+- [ ] 适配权重加载
+    - [ ] 检查 `sglang/python/sglang/srt/model_loader` 是否需要新增权重映射
+    - [ ] 若权重包含额外键名，编写自定义 `state_dict` 过滤逻辑
+    - [ ] 确认视觉投影、Cubing 权重能正确加载到模型模块
+- [ ] 校验推理路径
+    - [ ] 在仓库根目录运行 `python -m sglang.bench_one_batch --model <权重路径> --input-images /path/to/sample.mp4 --input-prompts "描述视频内容"`
+    - [ ] 对比 `quicksviewer/serve/cli.py` 输出，确保文本一致
+    - [ ] 针对多卡场景测试 `python -m sglang.run_serving --model <权重> --chat-template quicksviewer --port 30000`
+    - [ ] 若 tokenizer 需慢速模式，加上 `--tokenizer-mode slow` 参数
+- [ ] 编写和运行测试
+    - [ ] 在 `sglang/test/srt/models/test_generation_models.py` 将模型加入 `ALL_OTHER_MODELS`
+    - [ ] 运行 `ONLY_RUN=Quicksviewer python -m unittest test.srt.models.test_generation_models.TestGenerationModels.test_others`
+    - [ ] 补充针对视觉输入的单元测试或脚本（如 Cubing 输出维度校验）
+- [ ] 评估性能与准确性
+    - [ ] 使用 `bash quicksviewer/eval/run_eval.sh videomme <checkpoint> 420 1` 对比原仓库指标
+    - [ ] 执行 `sglang/docs/developer_guide/benchmark_and_profiling.md` 中的 benchmark，记录 TTFT 与 tokens/s
+    - [ ] 汇总差异并调优量化/并行配置
+- [ ] 整理文档与示例
+    - [ ] 更新 `docs/QUICKSVIEWER_SGLANG_ADAPT_CN.md` 中的步骤与命令
+    - [ ] 在 `README.md` 或 `docs/` 新增 SGLang 推理示例命令
+    - [ ] 在 `sglang/examples` 添加视频问答脚本或 Notebook
+- [ ] 提交前检查
+    - [ ] 运行 `python -m compileall sglang/python` 确保无语法错误
+    - [ ] 执行 `black sglang/python --line-length 240` 统一格式
+    - [ ] `git status` 确保仅包含预期改动，准备提交 PR
+- [ ] PR 与复现材料
+    - [ ] 在 PR 描述中写明适配目的、关键命令、测试结果
+    - [ ] 附上 Video-MME、MMMU 等评测日志或指标 JSON
+    - [ ] 标记需要设置的环境变量及硬件要求
