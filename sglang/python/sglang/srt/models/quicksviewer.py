@@ -1,0 +1,1 @@
+EntryClass = QuicksviewerForCausalLM
